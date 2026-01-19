@@ -32,6 +32,27 @@ type URL struct {
 	Priority string `xml:"priority"`
 }
 
+func getUrls(bodyBytes []byte) (URLSet) {
+	var responseData URLSet
+	err := xml.Unmarshal(bodyBytes, &responseData)
+
+	if err != nil {
+		log.Fatalf("Error unmarshalling XML: %v", err)
+	}
+
+	return responseData
+}
+
+func readResponseXML(response io.Reader) ([]byte, error) {
+	bodyBytes, err := io.ReadAll(response)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return bodyBytes, err
+}
+
 func main() {
 
 	// 1: Get xml from Sitemap.xml
@@ -49,24 +70,11 @@ func main() {
 		log.Fatalf("Unexpected status code: %d", resp.StatusCode)
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
+	bodyBytes,err := readResponseXML(resp.Body)
 
-	var responseData URLSet
-	err = xml.Unmarshal(bodyBytes, &responseData)
-	if err != nil {
-		log.Fatalf("Error unmarshalling XML: %v", err)
-	}
+	data := getUrls(bodyBytes)
 
-	fmt.Printf("Parsed XML response.\n")
-
-	for _, url := range responseData.URLs {
+	for _, url := range data.URLs {
 		fmt.Println("URL: ",url.Loc)
 	}
-
-	// for _, itme := range responseData.Urlset	{
-	// 	fmt.Printf("Item Name: %s, Value: %d\n", item.Name, item.Value)
-	// }
 }
