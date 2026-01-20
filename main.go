@@ -18,6 +18,7 @@ import (
 	"io"
 	"net/http"
 	"log"
+	"github.com/gocolly/colly/v2"
 )
 
 
@@ -62,6 +63,17 @@ func main() {
 
 	defer resp.Body.Close()
 
+	c := colly.NewCollector()
+
+	// Find and visit all links
+	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+		e.Request.Visit(e.Attr("href"))
+	})
+
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("Visiting", r.URL)
+	})
+
 	if err != nil {
 		log.Fatalf("Error making HTTP request: %v", err)
 	}
@@ -75,6 +87,9 @@ func main() {
 	data := getUrls(bodyBytes)
 
 	for _, url := range data.URLs {
-		fmt.Println("URL: ",url.Loc)
+		// fmt.Println("URL: ",url.Loc)
+		c.Visit(url.Loc)
 	}
+
+
 }
