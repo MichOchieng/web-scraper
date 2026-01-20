@@ -13,83 +13,32 @@
 package main
 
 import (
-	"encoding/xml"
 	"fmt"
-	"io"
-	"net/http"
-	"log"
-	"github.com/gocolly/colly/v2"
+	"github.com/gocolly/colly"
 )
-
-
-type URLSet struct {
-    URLs []URL `xml:"url"`
-}
-
-type URL struct {
-	Loc string `xml:"loc"`
-	LastMod string `xml:"lastmod"`
-	ChageFreq string `xml:"chagefreq"` 
-	Priority string `xml:"priority"`
-}
-
-func getUrls(bodyBytes []byte) (URLSet) {
-	var responseData URLSet
-	err := xml.Unmarshal(bodyBytes, &responseData)
-
-	if err != nil {
-		log.Fatalf("Error unmarshalling XML: %v", err)
-	}
-
-	return responseData
-}
-
-func readResponseXML(response io.Reader) ([]byte, error) {
-	bodyBytes, err := io.ReadAll(response)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return bodyBytes, err
-}
 
 func main() {
 
-	// 1: Get xml from Sitemap.xml
 	const website = "https://docs.python-zeep.org/sitemap.xml"
+	// Array containing all the known URLs in a sitemap
+	knownUrls := []string{}
 
-	resp,err := http.Get(website)
+	// Create a Collector
+	c := colly.NewCollector(colly.AllowedDomains("docs.python-zeep.org"))
 
-	defer resp.Body.Close()
-
-	c := colly.NewCollector()
-
-	// Find and visit all links
-	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		e.Request.Visit(e.Attr("href"))
+	// Create a callback on the XPath query searching for the URLs
+	c.OnXML("//urlset/url/loc", func(e *colly.XMLElement) {
+		knownUrls = append(knownUrls, e.Text)
 	})
 
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL)
-	})
+	// Start the collector
+	c.Visit(website)
 
-	if err != nil {
-		log.Fatalf("Error making HTTP request: %v", err)
+	fmt.Println("All known URLs:")
+	for _, url := range knownUrls {
+		fmt.Println("\t", url)
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("Unexpected status code: %d", resp.StatusCode)
-	}
-
-	bodyBytes,err := readResponseXML(resp.Body)
-
-	data := getUrls(bodyBytes)
-
-	for _, url := range data.URLs {
-		// fmt.Println("URL: ",url.Loc)
-		c.Visit(url.Loc)
-	}
+	fmt.Println("Collected", len(knownUrls), "URLs")
 
 
 }
